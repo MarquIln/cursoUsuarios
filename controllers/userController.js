@@ -5,6 +5,7 @@ class UserController {
         this.tableEl = document.getElementById(tableId);
         this.onSubmit();
         this.onEdit();
+        this.selectAll();
     }
 
     onEdit(){
@@ -13,7 +14,7 @@ class UserController {
         });
         this.formUpdateEl.addEventListener("submit", event => {
             event.preventDefault();
-            let btn = this.formUpdateEl.querySelector("[type=submit]")
+            let btn = this.formUpdateEl.querySelector("[type=submit]");
             btn.disabled = true;
 
             let values = this.getValues(this.formUpdateEl);
@@ -30,28 +31,20 @@ class UserController {
                     } else {
                         result._photo = content;
                     }
-                    tr.dataset.user = JSON.stringify(result);
+                    let user = new User();
 
-                    tr.innerHTML = `
-                        <td><img src="${result._photo}" class="img-circle img-sm"></td>
-                        <td>${result._name}</td>
-                        <td>${result._email}</td>
-                        <td>${(result._admin) ? 'Sim' : 'Não'}</td>
-                        <td>${Utils.dateFormat(result._register)}</td>
-                        <td>
-                            <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
-                            <button type="button" class="btn btn-danger btn-xs btn-flat">Excluir</button>
-                        </td>
-                    `;
+                    user.loadFromJSON(result);
+                    user.save();
 
-                    this.addEventsTr(tr);
+                    this.getTr(user, tr);
+
                     this.updateCount();
                     this.formUpdateEl.reset();
-                    this.showPanelCreate();
                     btn.disabled = false;
-                }, 
+                    this.showPanelCreate();
+                },
                 (e) => {
-                    console.error(e)
+                    console.error(e);
                 }
             );
         });
@@ -71,6 +64,7 @@ class UserController {
             this.getPhoto(this.formEl).then(
                 (content) => {
                     values.photo = content;
+                    values.save();
                     this.addLine(values);
                     this.formEl.reset();
                     btn.disabled = false;
@@ -144,9 +138,29 @@ class UserController {
         );
 
     }
+
+    selectAll(){
+        let users = User.getUsersStorage();
+        users.forEach(dataUser => {
+            let user = new User();
+            user.loadFromJSON(dataUser);
+            this.addLine(user);
+        });
+    }
     
     addLine(dataUser) {
-        let tr = document.createElement('tr');
+
+        let tr = this.getTr(dataUser);
+        this.addEventsTr(tr);
+        this.tableEl.appendChild(tr);
+        this.updateCount();
+    }
+
+    getTr(dataUser, tr = null){
+        if(tr === null) {
+            tr = document.createElement('tr')
+        };
+
         tr.dataset.user = JSON.stringify(dataUser);
 
         tr.innerHTML = `
@@ -164,13 +178,16 @@ class UserController {
         `;
 
         this.addEventsTr(tr);
-        this.tableEl.appendChild(tr);
-        this.updateCount();
+        return tr;
     }
 
     addEventsTr(tr) {
         tr.querySelector(".btn-delete").addEventListener("click", (e) => {
             if(confirm("Deseja relamente excluir?")) {
+                let user = new User();
+                user.loadFromJSON(JSON.parse(tr.dataset.user));
+                
+                user.delete();
                 tr.remove();
                 this.updateCount();
             }
